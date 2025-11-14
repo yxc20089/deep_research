@@ -198,35 +198,36 @@ async def interactive_research(question: str, verbose: bool = False):
         final_state = None
         last_node_time = time.time()
 
-        async for event in deep_researcher.astream(
-            state,
-            stream_mode=["updates", "messages"],
-        ):
-            # Stop spinner if running
-            if spinner:
-                spinner.stop()
-                spinner = None
+        try:
+            async for event in deep_researcher.astream(
+                state,
+                stream_mode=["updates", "messages"],
+            ):
+                # Stop spinner if running
+                if spinner:
+                    spinner.stop()
+                    spinner = None
 
-            # Handle streaming message chunks (token-by-token)
-            if isinstance(event, tuple):
-                event_type, event_data = event
-                if event_type == "messages":
-                    # This is a streaming message chunk
-                    if isinstance(event_data, list):
-                        for msg in event_data:
-                            if hasattr(msg, "content") and msg.content:
-                                print(msg.content, end='', flush=True)
-                    elif hasattr(event_data, "content") and event_data.content:
-                        print(event_data.content, end='', flush=True)
-                continue
+                # Handle streaming message chunks (token-by-token)
+                if isinstance(event, tuple):
+                    event_type, event_data = event
+                    if event_type == "messages":
+                        # This is a streaming message chunk
+                        if isinstance(event_data, list):
+                            for msg in event_data:
+                                if hasattr(msg, "content") and msg.content:
+                                    print(msg.content, end='', flush=True)
+                        elif hasattr(event_data, "content") and event_data.content:
+                            print(event_data.content, end='', flush=True)
+                    continue
 
-            # Handle node updates (dict events)
-            if not isinstance(event, dict):
-                continue
+                # Handle node updates (dict events)
+                if not isinstance(event, dict):
+                    continue
 
-            overall_step_count += 1
+                overall_step_count += 1
 
-            for node_name, node_state in event.items():
+                for node_name, node_state in event.items():
                 tracker.start_step(node_name)
                 last_node_time = time.time()
 
@@ -342,8 +343,21 @@ async def interactive_research(question: str, verbose: bool = False):
                 tracker.end_step()
                 final_state = node_state
 
+        except Exception as e:
+            logger.print(f"\n❌ Error during research: {e}")
+            import traceback
+            logger.print(f"\n{traceback.format_exc()}")
+            break
+
+        # Debug: show what we got
+        if not final_state:
+            logger.print(f"\n⚠️  No final state received. Steps executed: {len(tracker.steps)}")
+            if tracker.steps:
+                logger.print(f"Last step: {tracker.steps[-1]['name']}")
+            break
+
         # Check if the graph ended (clarification or completion)
-        if final_state and "messages" in final_state:
+        if "messages" in final_state:
             last_message = final_state["messages"][-1]
 
             if hasattr(last_message, "content"):
