@@ -53,9 +53,9 @@ from open_deep_research.utils import (
 )
 
 # Initialize a configurable model that we will use throughout the agent
+# Note: streaming is enabled by default in LangChain when using astream()
 configurable_model = init_chat_model(
     configurable_fields=("model", "max_tokens", "api_key"),
-    streaming=True,  # Enable streaming for all models
 )
 
 async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Command[Literal["write_research_brief", "__end__"]]:
