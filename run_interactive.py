@@ -7,7 +7,6 @@ import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 from dotenv import load_dotenv
-from langchain_core.messages import AIMessage, HumanMessage
 from src.open_deep_research.deep_researcher import deep_researcher
 from src.open_deep_research.configuration import Configuration
 
@@ -187,46 +186,30 @@ async def interactive_research(question: str, verbose: bool = False):
     logger.print(f"📁 Log file: {logger.log_file}")
     logger.print(f"{'='*80}\n")
 
-    messages = [HumanMessage(content=question)]
     tracker = ProgressTracker()
 
     overall_step_count = 0  # Track across all iterations
     spinner = None
+
+    # Initialize messages as dict format (compatible with LangGraph)
+    messages = [{"role": "user", "content": question}]
 
     while True:
         state = {"messages": messages}
         final_state = None
         last_node_time = time.time()
 
-        logger.print(f"🔍 Debug: Starting graph with {len(messages)} messages")
-
         try:
             async for event in deep_researcher.astream(
                 state,
-                stream_mode=["updates", "messages"],
+                stream_mode="updates",
             ):
                 # Stop spinner if running
                 if spinner:
                     spinner.stop()
                     spinner = None
 
-                # Handle streaming message chunks (token-by-token)
-                if isinstance(event, tuple):
-                    event_type, event_data = event
-                    if event_type == "messages":
-                        # This is a streaming message chunk
-                        if isinstance(event_data, list):
-                            for msg in event_data:
-                                if hasattr(msg, "content") and msg.content:
-                                    print(msg.content, end='', flush=True)
-                        elif hasattr(event_data, "content") and event_data.content:
-                            print(event_data.content, end='', flush=True)
-                    continue
-
-                # Handle node updates (dict events)
-                if not isinstance(event, dict):
-                    continue
-
+                # Each event is a dict of {node_name: node_state}
                 overall_step_count += 1
 
                 for node_name, node_state in event.items():
@@ -385,15 +368,15 @@ async def interactive_research(question: str, verbose: bool = False):
                     if response:
                         logger.print(f"User response: {response}", to_console=False)
                         # Add both the clarification question and user's answer to messages
-                        messages.append(AIMessage(content=content))
-                        messages.append(HumanMessage(content=response))
+                        messages.append({"role": "assistant", "content": content})
+                        messages.append({"role": "user", "content": response})
                         logger.print("\n📝 Continuing research with your clarification...\n")
                         tracker = ProgressTracker()  # Reset tracker
                         continue
                     else:
                         logger.print("\n⏭️  Proceeding with comprehensive research...\n")
-                        messages.append(AIMessage(content=content))
-                        messages.append(HumanMessage(content="Please proceed with comprehensive research on all aspects."))
+                        messages.append({"role": "assistant", "content": content})
+                        messages.append({"role": "user", "content": "Please proceed with comprehensive research on all aspects."})
                         tracker = ProgressTracker()  # Reset tracker
                         continue
 
