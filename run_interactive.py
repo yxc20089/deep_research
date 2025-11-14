@@ -153,13 +153,14 @@ async def interactive_research(question: str, verbose: bool = False):
     messages = [{"role": "user", "content": question}]
     tracker = ProgressTracker()
 
+    overall_step_count = 0  # Track across all iterations
+
     while True:
         state = {"messages": messages}
         final_state = None
-        step_count = 0
 
         async for event in deep_researcher.astream(state, stream_mode="updates"):
-            step_count += 1
+            overall_step_count += 1
 
             for node_name, node_state in event.items():
                 tracker.start_step(node_name)
@@ -170,13 +171,13 @@ async def interactive_research(question: str, verbose: bool = False):
                 # Determine node type and display appropriate info
                 if node_name == "clarify_with_user":
                     logger.print(f"\n{'─'*80}")
-                    logger.print(f"📋 STEP {step_count}: Clarifying Requirements")
+                    logger.print(f"📋 STEP {overall_step_count}: Clarifying Requirements")
                     logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
                     logger.print(f"{'─'*80}")
 
-                elif node_name == "create_research_brief":
+                elif node_name == "write_research_brief":
                     logger.print(f"\n{'─'*80}")
-                    logger.print(f"📝 STEP {step_count}: Creating Research Plan")
+                    logger.print(f"📝 STEP {overall_step_count}: Creating Research Plan")
                     logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
                     logger.print(f"{'─'*80}")
 
@@ -186,23 +187,26 @@ async def interactive_research(question: str, verbose: bool = False):
                     progress_bar = tracker.get_progress_bar(iteration, max_iter)
 
                     logger.print(f"\n{'─'*80}")
-                    logger.print(f"🎯 STEP {step_count}: Research Supervisor (Iteration {iteration}/{max_iter})")
+                    logger.print(f"🎯 STEP {overall_step_count}: Research Supervisor (Iteration {iteration}/{max_iter})")
                     logger.print(f"   {progress_bar}")
                     logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()} | ETA: {tracker.estimate_remaining(iteration, max_iter)}")
                     logger.print(f"📊 Notes Collected: {info['notes_count']}")
 
                     if info["topics"]:
-                        logger.print(f"\n🔍 Research Topics Assigned:")
-                        for i, topic in enumerate(info["topics"][-3:], 1):  # Show last 3
-                            logger.print(f"   {i}. {topic[:100]}...")
+                        logger.print(f"\n🔍 Research Topics Assigned ({len(info['topics'])} topics):")
+                        for i, topic in enumerate(info["topics"][-5:], 1):  # Show last 5
+                            logger.print(f"   {i}. {topic[:120]}...")
                     logger.print(f"{'─'*80}")
 
                 elif "researcher" in node_name.lower():
+                    # Extract researcher number/ID from node name if possible
+                    researcher_id = node_name.replace("researcher_", "").replace("researcher", "")
+
                     logger.print(f"\n{'─'*80}")
-                    logger.print(f"🔎 STEP {step_count}: Researcher Working")
+                    logger.print(f"🔎 STEP {overall_step_count}: Researcher{' ' + researcher_id if researcher_id else ''} Working")
 
                     if info["topics"]:
-                        logger.print(f"📌 Topic: {info['topics'][0][:150]}...")
+                        logger.print(f"📌 Topic: {info['topics'][0][:180]}...")
 
                     # Show tool call iterations if available
                     if "tool_call_iterations" in node_state:
@@ -216,16 +220,23 @@ async def interactive_research(question: str, verbose: bool = False):
 
                 elif node_name == "compress_research":
                     logger.print(f"\n{'─'*80}")
-                    logger.print(f"📦 STEP {step_count}: Compressing Research Findings")
+                    logger.print(f"📦 STEP {overall_step_count}: Compressing Research Findings")
                     logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
                     logger.print(f"📊 Notes to Compress: {info['notes_count']}")
                     logger.print(f"{'─'*80}")
 
                 elif node_name == "write_report":
                     logger.print(f"\n{'─'*80}")
-                    logger.print(f"📄 STEP {step_count}: Writing Final Report")
+                    logger.print(f"📄 STEP {overall_step_count}: Writing Final Report")
                     logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
                     logger.print(f"📊 Using {info['notes_count']} research notes")
+                    logger.print(f"{'─'*80}")
+
+                else:
+                    # Log any other nodes we haven't explicitly handled
+                    logger.print(f"\n{'─'*80}")
+                    logger.print(f"⚙️  STEP {overall_step_count}: {node_name}")
+                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
                     logger.print(f"{'─'*80}")
 
                 tracker.end_step()
