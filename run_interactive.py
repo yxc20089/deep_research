@@ -224,13 +224,27 @@ async def interactive_research(question: str, verbose: bool = False):
                         logger.print(f"\n{'─'*80}")
                         logger.print(f"📋 STEP {overall_step_count}: Clarifying Requirements")
                         logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
-                        logger.print(f"{'─'*80}")
+                        logger.print(f"{'─'*80}\n")
+
+                        # Display the clarification content
+                        if "messages" in node_state and node_state["messages"]:
+                            last_msg = node_state["messages"][-1]
+                            if hasattr(last_msg, "content") and last_msg.content:
+                                logger.print(last_msg.content)
+                        logger.print(f"\n{'─'*80}")
 
                     elif node_name == "write_research_brief":
                         logger.print(f"\n{'─'*80}")
                         logger.print(f"📝 STEP {overall_step_count}: Creating Research Plan")
                         logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
-                        logger.print(f"{'─'*80}")
+                        logger.print(f"{'─'*80}\n")
+
+                        # Display the research brief content
+                        if "messages" in node_state and node_state["messages"]:
+                            last_msg = node_state["messages"][-1]
+                            if hasattr(last_msg, "content") and last_msg.content:
+                                logger.print(last_msg.content)
+                        logger.print(f"\n{'─'*80}")
 
                     elif node_name == "research_supervisor" or node_name == "supervisor":
                         iteration = info["iteration"]
