@@ -71,7 +71,29 @@ This will start the server and open LangGraph Studio in your browser:
 - 🎨 Studio UI: https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024
 - 📚 API Docs: http://127.0.0.1:2024/docs
 
-### 5. Test the search
+### 5. Run Research
+
+You have multiple options:
+
+#### Option A: Interactive Session (Recommended)
+
+Start an interactive session and ask multiple questions:
+
+```bash
+python run_interactive.py
+```
+
+Then enter your questions one at a time. Type `quit` to exit.
+
+#### Option B: Single Question
+
+Run research on a single question:
+
+```bash
+python run_interactive.py "What are the latest developments in quantum computing?"
+```
+
+#### Option C: LangGraph Studio UI
 
 In LangGraph Studio:
 1. Enter a research question in the `messages` input field
