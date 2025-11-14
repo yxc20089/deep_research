@@ -202,21 +202,29 @@ async def interactive_research(question: str, verbose: bool = False):
             state,
             stream_mode=["updates", "messages"],
         ):
-            overall_step_count += 1
-
             # Stop spinner if running
             if spinner:
                 spinner.stop()
                 spinner = None
 
             # Handle streaming message chunks (token-by-token)
-            if isinstance(event, tuple) and event[0] == "messages":
-                # This is a streaming message chunk
-                _, message_chunk = event
-                if hasattr(message_chunk, "content"):
-                    # Stream the content token by token
-                    print(message_chunk.content, end='', flush=True)
+            if isinstance(event, tuple):
+                event_type, event_data = event
+                if event_type == "messages":
+                    # This is a streaming message chunk
+                    if isinstance(event_data, list):
+                        for msg in event_data:
+                            if hasattr(msg, "content") and msg.content:
+                                print(msg.content, end='', flush=True)
+                    elif hasattr(event_data, "content") and event_data.content:
+                        print(event_data.content, end='', flush=True)
                 continue
+
+            # Handle node updates (dict events)
+            if not isinstance(event, dict):
+                continue
+
+            overall_step_count += 1
 
             for node_name, node_state in event.items():
                 tracker.start_step(node_name)
