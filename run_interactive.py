@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 from dotenv import load_dotenv
+from langchain_core.messages import AIMessage, HumanMessage
 from src.open_deep_research.deep_researcher import deep_researcher
 from src.open_deep_research.configuration import Configuration
 
@@ -230,22 +231,21 @@ async def interactive_research(question: str, verbose: bool = False):
                 tracker.end_step()
                 final_state = node_state
 
-        # Check if there's a clarification question or final report
+        # Check if the graph ended (clarification or completion)
         if final_state and "messages" in final_state:
             last_message = final_state["messages"][-1]
 
             if hasattr(last_message, "content"):
                 content = last_message.content
 
-                # Check if this is step 1 (clarification) by looking at step count and content
-                is_clarification_step = (
-                    step_count == 1 and
-                    isinstance(content, str) and
-                    len(tracker.steps) <= 1 and
-                    ("?" in content or "please" in content.lower() or "clarify" in content.lower())
-                )
+                # Check if we stopped after clarification step
+                # The graph ends at clarify_with_user when it needs clarification
+                clarify_node_ran = any(step["name"] == "clarify_with_user" for step in tracker.steps)
+                research_nodes_ran = any("research" in step["name"].lower() or "write_report" in step["name"]
+                                        for step in tracker.steps)
 
-                if is_clarification_step:
+                # If only clarification ran (no research nodes), this is a clarification request
+                if clarify_node_ran and not research_nodes_ran:
                     logger.print(f"\n{'='*80}")
                     logger.print("💬 CLARIFICATION NEEDED")
                     logger.print(f"{'='*80}\n")
@@ -257,19 +257,20 @@ async def interactive_research(question: str, verbose: bool = False):
 
                     if response:
                         logger.print(f"User response: {response}", to_console=False)
-                        messages.append({"role": "assistant", "content": content})
-                        messages.append({"role": "user", "content": response})
+                        # Add both the clarification question and user's answer to messages
+                        messages.append(AIMessage(content=content))
+                        messages.append(HumanMessage(content=response))
                         logger.print("\n📝 Continuing research with your clarification...\n")
                         tracker = ProgressTracker()  # Reset tracker
                         continue
                     else:
                         logger.print("\n⏭️  Proceeding with comprehensive research...\n")
-                        messages.append({"role": "assistant", "content": content})
-                        messages.append({"role": "user", "content": "Please proceed with comprehensive research on all aspects."})
+                        messages.append(AIMessage(content=content))
+                        messages.append(HumanMessage(content="Please proceed with comprehensive research on all aspects."))
                         tracker = ProgressTracker()  # Reset tracker
                         continue
 
-                # Otherwise, it's the final report
+                # Otherwise, it's the final report (research nodes have run)
                 logger.print(f"\n{'='*80}")
                 logger.print("✅ RESEARCH COMPLETE")
                 logger.print(f"{'='*80}")
