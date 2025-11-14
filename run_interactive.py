@@ -256,6 +256,11 @@ async def interactive_research(question: str, verbose: bool = False):
                             logger.print(node_state["research_brief"])
                         logger.print(f"\n{'─'*80}")
 
+                        # Inform user that research is about to start
+                        logger.print(f"\n🔬 Starting Research Phase...")
+                        logger.print(f"   Running parallel web searches and analysis")
+                        logger.print(f"   This process may take several minutes\n")
+
                     elif node_name == "research_supervisor" or node_name == "supervisor":
                         iteration = info["iteration"]
                         max_iter = config.max_researcher_iterations
