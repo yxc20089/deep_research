@@ -239,11 +239,9 @@ async def interactive_research(question: str, verbose: bool = False):
                         logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
                         logger.print(f"{'─'*80}\n")
 
-                        # Display the research brief content
-                        if "messages" in node_state and node_state["messages"]:
-                            last_msg = node_state["messages"][-1]
-                            if hasattr(last_msg, "content") and last_msg.content:
-                                logger.print(last_msg.content)
+                        # Display the research brief content from state
+                        if "research_brief" in node_state and node_state["research_brief"]:
+                            logger.print(node_state["research_brief"])
                         logger.print(f"\n{'─'*80}")
 
                     elif node_name == "research_supervisor" or node_name == "supervisor":
