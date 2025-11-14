@@ -198,7 +198,13 @@ async def interactive_research(question: str, verbose: bool = False):
         final_state = None
         last_node_time = time.time()
 
-        async for event in deep_researcher.astream(state, stream_mode="updates"):
+        # Track if we're in report writing phase for streaming
+        in_report_writing = False
+
+        async for event in deep_researcher.astream(
+            state,
+            stream_mode="updates",
+        ):
             overall_step_count += 1
 
             # Stop spinner if running
@@ -207,6 +213,31 @@ async def interactive_research(question: str, verbose: bool = False):
                 spinner = None
 
             for node_name, node_state in event.items():
+                # Check if we're entering report writing
+                if node_name == "write_report":
+                    in_report_writing = True
+                    logger.print(f"\n{'─'*80}")
+                    logger.print(f"📄 STEP {overall_step_count}: Writing Final Report")
+                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
+                    info = extract_research_info(node_state)
+                    logger.print(f"📊 Using {info['notes_count']} research notes")
+                    logger.print(f"{'─'*80}\n")
+                    logger.print(f"📝 Report Content:\n")
+
+                    # Try to stream if messages are being updated
+                    if "messages" in node_state:
+                        for msg in node_state["messages"]:
+                            if hasattr(msg, "content") and msg.content:
+                                # Stream character by character for dramatic effect
+                                for char in msg.content:
+                                    print(char, end='', flush=True)
+                                    await asyncio.sleep(0.001)  # Tiny delay for streaming effect
+                                print("\n")
+
+                    tracker.start_step(node_name)
+                    tracker.end_step()
+                    final_state = node_state
+                    continue
                 tracker.start_step(node_name)
                 last_node_time = time.time()
 
@@ -302,13 +333,6 @@ async def interactive_research(question: str, verbose: bool = False):
                     logger.print(f"📦 STEP {overall_step_count}: Compressing Research Findings")
                     logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
                     logger.print(f"📊 Notes to Compress: {info['notes_count']}")
-                    logger.print(f"{'─'*80}")
-
-                elif node_name == "write_report":
-                    logger.print(f"\n{'─'*80}")
-                    logger.print(f"📄 STEP {overall_step_count}: Writing Final Report")
-                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
-                    logger.print(f"📊 Using {info['notes_count']} research notes")
                     logger.print(f"{'─'*80}")
 
                 else:
