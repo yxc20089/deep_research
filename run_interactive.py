@@ -202,12 +202,24 @@ async def interactive_research(question: str, verbose: bool = False):
         try:
             async for event in deep_researcher.astream(
                 state,
-                stream_mode="updates",
+                stream_mode=["updates", "subgraphs"],
             ):
                 # Stop spinner if running
                 if spinner:
                     spinner.stop()
                     spinner = None
+
+                # Handle tuple events from subgraphs mode (ns, event_dict)
+                if isinstance(event, tuple):
+                    # Subgraph event - extract the event dict
+                    ns, event_data = event
+                    if not isinstance(event_data, dict):
+                        continue
+                    event = event_data
+
+                # Skip if not a dict
+                if not isinstance(event, dict):
+                    continue
 
                 # Each event is a dict of {node_name: node_state}
                 overall_step_count += 1
