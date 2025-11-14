@@ -230,15 +230,22 @@ async def interactive_research(question: str, verbose: bool = False):
                 tracker.end_step()
                 final_state = node_state
 
-        # Check if there's a clarification question
+        # Check if there's a clarification question or final report
         if final_state and "messages" in final_state:
             last_message = final_state["messages"][-1]
 
             if hasattr(last_message, "content"):
                 content = last_message.content
 
-                # Check if it's asking for clarification
-                if isinstance(content, str) and "?" in content and len(content) < 500:
+                # Check if this is step 1 (clarification) by looking at step count and content
+                is_clarification_step = (
+                    step_count == 1 and
+                    isinstance(content, str) and
+                    len(tracker.steps) <= 1 and
+                    ("?" in content or "please" in content.lower() or "clarify" in content.lower())
+                )
+
+                if is_clarification_step:
                     logger.print(f"\n{'='*80}")
                     logger.print("💬 CLARIFICATION NEEDED")
                     logger.print(f"{'='*80}\n")
@@ -246,7 +253,7 @@ async def interactive_research(question: str, verbose: bool = False):
                     logger.print(f"\n{'='*80}")
 
                     # Get user response
-                    response = input("\n👉 Your response (or press Enter to continue): ").strip()
+                    response = input("\n👉 Your response (or press Enter to skip): ").strip()
 
                     if response:
                         logger.print(f"User response: {response}", to_console=False)
