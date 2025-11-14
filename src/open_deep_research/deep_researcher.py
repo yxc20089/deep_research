@@ -212,14 +212,21 @@ async def supervisor(state: SupervisorState, config: RunnableConfig) -> Command[
     
     # Step 2: Generate supervisor response based on current context
     supervisor_messages = state.get("supervisor_messages", [])
+    iteration = state.get("research_iterations", 0) + 1
+
+    # Log progress
+    print(f"\n{'─'*80}")
+    print(f"🎯 RESEARCH SUPERVISOR - Iteration {iteration}/{configurable.max_researcher_iterations}")
+    print(f"{'─'*80}")
+
     response = await research_model.ainvoke(supervisor_messages)
-    
+
     # Step 3: Update state and proceed to tool execution
     return Command(
         goto="supervisor_tools",
         update={
             "supervisor_messages": [response],
-            "research_iterations": state.get("research_iterations", 0) + 1
+            "research_iterations": iteration
         }
     )
 
@@ -291,7 +298,18 @@ async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Co
             # Limit concurrent research units to prevent resource exhaustion
             allowed_conduct_research_calls = conduct_research_calls[:configurable.max_concurrent_research_units]
             overflow_conduct_research_calls = conduct_research_calls[configurable.max_concurrent_research_units:]
-            
+
+            # Log research dispatch
+            print(f"\n🚀 Dispatching {len(allowed_conduct_research_calls)} Parallel Researchers")
+            for i, tc in enumerate(allowed_conduct_research_calls[:5], 1):  # Show first 5
+                topic = tc["args"]["research_topic"][:100]
+                print(f"   {i}. {topic}...")
+            if len(allowed_conduct_research_calls) > 5:
+                print(f"   ... and {len(allowed_conduct_research_calls) - 5} more")
+            if overflow_conduct_research_calls:
+                print(f"   ({len(overflow_conduct_research_calls)} topics queued for next iteration)")
+            print()
+
             # Execute research tasks in parallel
             research_tasks = [
                 researcher_subgraph.ainvoke({
@@ -304,7 +322,10 @@ async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Co
             ]
             
             tool_results = await asyncio.gather(*research_tasks)
-            
+
+            # Log completion
+            print(f"✅ {len(tool_results)} researchers completed\n")
+
             # Create tool messages with research results
             for observation, tool_call in zip(tool_results, allowed_conduct_research_calls):
                 all_tool_messages.append(ToolMessage(
@@ -633,10 +654,15 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
     }
     
     # Step 3: Attempt report generation with token limit retry logic
+    print(f"\n{'─'*80}")
+    print(f"📄 GENERATING FINAL REPORT")
+    print(f"   Synthesizing {len(notes)} research findings")
+    print(f"{'─'*80}\n")
+
     max_retries = 3
     current_retry = 0
     findings_token_limit = None
-    
+
     while current_retry <= max_retries:
         try:
             # Create comprehensive prompt with all research context
