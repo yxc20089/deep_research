@@ -3,6 +3,7 @@ import asyncio
 import sys
 import time
 import os
+import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 from dotenv import load_dotenv
@@ -11,6 +12,42 @@ from src.open_deep_research.deep_researcher import deep_researcher
 from src.open_deep_research.configuration import Configuration
 
 load_dotenv()
+
+class ProgressSpinner:
+    """Show a spinner during long-running operations."""
+
+    def __init__(self, message="Working"):
+        self.message = message
+        self.running = False
+        self.thread = None
+        self.start_time = None
+
+    def spin(self):
+        """Spinner animation."""
+        spinner_chars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+        idx = 0
+        while self.running:
+            elapsed = int(time.time() - self.start_time)
+            mins, secs = divmod(elapsed, 60)
+            time_str = f"{mins:02d}:{secs:02d}"
+            print(f"\r{spinner_chars[idx]} {self.message}... [{time_str}]", end='', flush=True)
+            idx = (idx + 1) % len(spinner_chars)
+            time.sleep(0.1)
+
+    def start(self):
+        """Start the spinner."""
+        self.running = True
+        self.start_time = time.time()
+        self.thread = threading.Thread(target=self.spin)
+        self.thread.daemon = True
+        self.thread.start()
+
+    def stop(self):
+        """Stop the spinner."""
+        self.running = False
+        if self.thread:
+            self.thread.join()
+        print("\r" + " " * 80 + "\r", end='', flush=True)  # Clear line
 
 class OutputLogger:
     """Log output to both console and file."""
@@ -154,16 +191,24 @@ async def interactive_research(question: str, verbose: bool = False):
     tracker = ProgressTracker()
 
     overall_step_count = 0  # Track across all iterations
+    spinner = None
 
     while True:
         state = {"messages": messages}
         final_state = None
+        last_node_time = time.time()
 
         async for event in deep_researcher.astream(state, stream_mode="updates"):
             overall_step_count += 1
 
+            # Stop spinner if running
+            if spinner:
+                spinner.stop()
+                spinner = None
+
             for node_name, node_state in event.items():
                 tracker.start_step(node_name)
+                last_node_time = time.time()
 
                 # Extract information
                 info = extract_research_info(node_state)
@@ -199,26 +244,38 @@ async def interactive_research(question: str, verbose: bool = False):
                     logger.print(f"{'─'*80}")
 
                 elif node_name == "supervisor_tools":
-                    # Extract research topics being dispatched
-                    if "supervisor_messages" in node_state:
-                        last_supervisor_msg = node_state["supervisor_messages"][-1] if node_state["supervisor_messages"] else None
-                        if last_supervisor_msg and hasattr(last_supervisor_msg, "tool_calls"):
-                            research_topics = [
-                                tc.get("args", {}).get("research_topic", "")
-                                for tc in last_supervisor_msg.tool_calls
-                                if tc.get("name") == "ConductResearch"
-                            ]
+                    # Show that we're processing supervisor decisions
+                    logger.print(f"\n{'─'*80}")
+                    logger.print(f"⚙️  STEP {overall_step_count}: Processing Supervisor Decisions")
+                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
 
-                            if research_topics:
-                                num_researchers = min(len(research_topics), config.max_concurrent_research_units)
-                                logger.print(f"\n{'─'*80}")
-                                logger.print(f"🚀 STEP {overall_step_count}: Dispatching {num_researchers} Parallel Researchers")
-                                logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
-                                logger.print(f"\n📋 Research Topics:")
-                                for i, topic in enumerate(research_topics[:5], 1):
-                                    logger.print(f"   {i}. {topic[:150]}...")
-                                logger.print(f"\n⏳ Researchers working in parallel... (this may take a while)")
-                                logger.print(f"{'─'*80}")
+                    # Extract research topics being dispatched
+                    research_topics = []
+                    if "supervisor_messages" in node_state:
+                        for msg in node_state["supervisor_messages"]:
+                            if hasattr(msg, "tool_calls"):
+                                for tc in msg.tool_calls:
+                                    if tc.get("name") == "ConductResearch":
+                                        topic = tc.get("args", {}).get("research_topic", "")
+                                        if topic:
+                                            research_topics.append(topic)
+
+                    if research_topics:
+                        num_researchers = min(len(research_topics), config.max_concurrent_research_units)
+                        logger.print(f"\n🚀 Dispatching {num_researchers} Parallel Researchers")
+                        logger.print(f"\n📋 Research Topics:")
+                        for i, topic in enumerate(research_topics[:num_researchers], 1):
+                            logger.print(f"   {i}. {topic[:150]}...")
+                        if len(research_topics) > num_researchers:
+                            logger.print(f"   ... and {len(research_topics) - num_researchers} more (queued)")
+                        logger.print(f"{'─'*80}")
+
+                        # Start spinner for parallel research
+                        spinner = ProgressSpinner(f"🔎 {num_researchers} researchers conducting web searches")
+                        spinner.start()
+                    else:
+                        logger.print(f"✓ Completed")
+                        logger.print(f"{'─'*80}")
 
                 elif "researcher" in node_name.lower():
                     # Extract researcher number/ID from node name if possible
