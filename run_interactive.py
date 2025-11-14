@@ -228,119 +228,119 @@ async def interactive_research(question: str, verbose: bool = False):
                 overall_step_count += 1
 
                 for node_name, node_state in event.items():
-                tracker.start_step(node_name)
-                last_node_time = time.time()
+                    tracker.start_step(node_name)
+                    last_node_time = time.time()
 
-                # Extract information
-                info = extract_research_info(node_state)
+                    # Extract information
+                    info = extract_research_info(node_state)
 
-                # Determine node type and display appropriate info
-                if node_name == "clarify_with_user":
-                    logger.print(f"\n{'─'*80}")
-                    logger.print(f"📋 STEP {overall_step_count}: Clarifying Requirements")
-                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
-                    logger.print(f"{'─'*80}")
-
-                elif node_name == "write_research_brief":
-                    logger.print(f"\n{'─'*80}")
-                    logger.print(f"📝 STEP {overall_step_count}: Creating Research Plan")
-                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
-                    logger.print(f"{'─'*80}")
-
-                elif node_name == "research_supervisor" or node_name == "supervisor":
-                    iteration = info["iteration"]
-                    max_iter = config.max_researcher_iterations
-                    progress_bar = tracker.get_progress_bar(iteration, max_iter)
-
-                    logger.print(f"\n{'─'*80}")
-                    logger.print(f"🎯 STEP {overall_step_count}: Research Supervisor (Iteration {iteration}/{max_iter})")
-                    logger.print(f"   {progress_bar}")
-                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()} | ETA: {tracker.estimate_remaining(iteration, max_iter)}")
-                    logger.print(f"📊 Notes Collected: {info['notes_count']}")
-
-                    if info["topics"]:
-                        logger.print(f"\n🔍 Research Topics Assigned ({len(info['topics'])} topics):")
-                        for i, topic in enumerate(info["topics"][-5:], 1):  # Show last 5
-                            logger.print(f"   {i}. {topic[:120]}...")
-                    logger.print(f"{'─'*80}")
-
-                elif node_name == "supervisor_tools":
-                    # Show that we're processing supervisor decisions
-                    logger.print(f"\n{'─'*80}")
-                    logger.print(f"⚙️  STEP {overall_step_count}: Processing Supervisor Decisions")
-                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
-
-                    # Extract research topics being dispatched
-                    research_topics = []
-                    if "supervisor_messages" in node_state:
-                        for msg in node_state["supervisor_messages"]:
-                            if hasattr(msg, "tool_calls"):
-                                for tc in msg.tool_calls:
-                                    if tc.get("name") == "ConductResearch":
-                                        topic = tc.get("args", {}).get("research_topic", "")
-                                        if topic:
-                                            research_topics.append(topic)
-
-                    if research_topics:
-                        num_researchers = min(len(research_topics), config.max_concurrent_research_units)
-                        logger.print(f"\n🚀 Dispatching {num_researchers} Parallel Researchers")
-                        logger.print(f"\n📋 Research Topics:")
-                        for i, topic in enumerate(research_topics[:num_researchers], 1):
-                            logger.print(f"   {i}. {topic[:150]}...")
-                        if len(research_topics) > num_researchers:
-                            logger.print(f"   ... and {len(research_topics) - num_researchers} more (queued)")
+                    # Determine node type and display appropriate info
+                    if node_name == "clarify_with_user":
+                        logger.print(f"\n{'─'*80}")
+                        logger.print(f"📋 STEP {overall_step_count}: Clarifying Requirements")
+                        logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
                         logger.print(f"{'─'*80}")
 
-                        # Start spinner for parallel research
-                        spinner = ProgressSpinner(f"🔎 {num_researchers} researchers conducting web searches")
-                        spinner.start()
+                    elif node_name == "write_research_brief":
+                        logger.print(f"\n{'─'*80}")
+                        logger.print(f"📝 STEP {overall_step_count}: Creating Research Plan")
+                        logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
+                        logger.print(f"{'─'*80}")
+
+                    elif node_name == "research_supervisor" or node_name == "supervisor":
+                        iteration = info["iteration"]
+                        max_iter = config.max_researcher_iterations
+                        progress_bar = tracker.get_progress_bar(iteration, max_iter)
+
+                        logger.print(f"\n{'─'*80}")
+                        logger.print(f"🎯 STEP {overall_step_count}: Research Supervisor (Iteration {iteration}/{max_iter})")
+                        logger.print(f"   {progress_bar}")
+                        logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()} | ETA: {tracker.estimate_remaining(iteration, max_iter)}")
+                        logger.print(f"📊 Notes Collected: {info['notes_count']}")
+
+                        if info["topics"]:
+                            logger.print(f"\n🔍 Research Topics Assigned ({len(info['topics'])} topics):")
+                            for i, topic in enumerate(info["topics"][-5:], 1):  # Show last 5
+                                logger.print(f"   {i}. {topic[:120]}...")
+                        logger.print(f"{'─'*80}")
+
+                    elif node_name == "supervisor_tools":
+                        # Show that we're processing supervisor decisions
+                        logger.print(f"\n{'─'*80}")
+                        logger.print(f"⚙️  STEP {overall_step_count}: Processing Supervisor Decisions")
+                        logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
+
+                        # Extract research topics being dispatched
+                        research_topics = []
+                        if "supervisor_messages" in node_state:
+                            for msg in node_state["supervisor_messages"]:
+                                if hasattr(msg, "tool_calls"):
+                                    for tc in msg.tool_calls:
+                                        if tc.get("name") == "ConductResearch":
+                                            topic = tc.get("args", {}).get("research_topic", "")
+                                            if topic:
+                                                research_topics.append(topic)
+
+                        if research_topics:
+                            num_researchers = min(len(research_topics), config.max_concurrent_research_units)
+                            logger.print(f"\n🚀 Dispatching {num_researchers} Parallel Researchers")
+                            logger.print(f"\n📋 Research Topics:")
+                            for i, topic in enumerate(research_topics[:num_researchers], 1):
+                                logger.print(f"   {i}. {topic[:150]}...")
+                            if len(research_topics) > num_researchers:
+                                logger.print(f"   ... and {len(research_topics) - num_researchers} more (queued)")
+                            logger.print(f"{'─'*80}")
+
+                            # Start spinner for parallel research
+                            spinner = ProgressSpinner(f"🔎 {num_researchers} researchers conducting web searches")
+                            spinner.start()
+                        else:
+                            logger.print(f"✓ Completed")
+                            logger.print(f"{'─'*80}")
+
+                    elif "researcher" in node_name.lower():
+                        # Extract researcher number/ID from node name if possible
+                        researcher_id = node_name.replace("researcher_", "").replace("researcher", "")
+
+                        logger.print(f"\n{'─'*80}")
+                        logger.print(f"🔎 STEP {overall_step_count}: Researcher{' ' + researcher_id if researcher_id else ''} Working")
+
+                        if info["topics"]:
+                            logger.print(f"📌 Topic: {info['topics'][0][:180]}...")
+
+                        # Show tool call iterations if available
+                        if "tool_call_iterations" in node_state:
+                            tool_iter = node_state["tool_call_iterations"]
+                            max_tool_iter = config.max_react_tool_calls
+                            tool_progress = tracker.get_progress_bar(tool_iter, max_tool_iter, width=20)
+                            logger.print(f"🔧 Tool Calls: {tool_progress} ({tool_iter}/{max_tool_iter})")
+
+                        logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
+                        logger.print(f"{'─'*80}")
+
+                    elif node_name == "compress_research":
+                        logger.print(f"\n{'─'*80}")
+                        logger.print(f"📦 STEP {overall_step_count}: Compressing Research Findings")
+                        logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
+                        logger.print(f"📊 Notes to Compress: {info['notes_count']}")
+                        logger.print(f"{'─'*80}")
+
+                    elif node_name == "write_report":
+                        logger.print(f"\n{'─'*80}")
+                        logger.print(f"📄 STEP {overall_step_count}: Writing Final Report")
+                        logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
+                        logger.print(f"📊 Using {info['notes_count']} research notes")
+                        logger.print(f"{'─'*80}\n")
+                        logger.print(f"📝 Generating report (streaming)...\n")
+
                     else:
-                        logger.print(f"✓ Completed")
+                        # Log any other nodes we haven't explicitly handled
+                        logger.print(f"\n{'─'*80}")
+                        logger.print(f"⚙️  STEP {overall_step_count}: {node_name}")
+                        logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
                         logger.print(f"{'─'*80}")
 
-                elif "researcher" in node_name.lower():
-                    # Extract researcher number/ID from node name if possible
-                    researcher_id = node_name.replace("researcher_", "").replace("researcher", "")
-
-                    logger.print(f"\n{'─'*80}")
-                    logger.print(f"🔎 STEP {overall_step_count}: Researcher{' ' + researcher_id if researcher_id else ''} Working")
-
-                    if info["topics"]:
-                        logger.print(f"📌 Topic: {info['topics'][0][:180]}...")
-
-                    # Show tool call iterations if available
-                    if "tool_call_iterations" in node_state:
-                        tool_iter = node_state["tool_call_iterations"]
-                        max_tool_iter = config.max_react_tool_calls
-                        tool_progress = tracker.get_progress_bar(tool_iter, max_tool_iter, width=20)
-                        logger.print(f"🔧 Tool Calls: {tool_progress} ({tool_iter}/{max_tool_iter})")
-
-                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
-                    logger.print(f"{'─'*80}")
-
-                elif node_name == "compress_research":
-                    logger.print(f"\n{'─'*80}")
-                    logger.print(f"📦 STEP {overall_step_count}: Compressing Research Findings")
-                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
-                    logger.print(f"📊 Notes to Compress: {info['notes_count']}")
-                    logger.print(f"{'─'*80}")
-
-                elif node_name == "write_report":
-                    logger.print(f"\n{'─'*80}")
-                    logger.print(f"📄 STEP {overall_step_count}: Writing Final Report")
-                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
-                    logger.print(f"📊 Using {info['notes_count']} research notes")
-                    logger.print(f"{'─'*80}\n")
-                    logger.print(f"📝 Generating report (streaming)...\n")
-
-                else:
-                    # Log any other nodes we haven't explicitly handled
-                    logger.print(f"\n{'─'*80}")
-                    logger.print(f"⚙️  STEP {overall_step_count}: {node_name}")
-                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
-                    logger.print(f"{'─'*80}")
-
-                tracker.end_step()
+                    tracker.end_step()
                 final_state = node_state
 
         except Exception as e:
