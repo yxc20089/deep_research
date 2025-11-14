@@ -289,15 +289,47 @@ def main():
     args = [arg for arg in sys.argv[1:] if arg not in ["--verbose", "-v"]]
 
     if args:
+        # Single question mode
         question = " ".join(args)
         asyncio.run(interactive_research(question, verbose))
     else:
-        print("🔬 Interactive Deep Research")
+        # Interactive session mode
         print("="*80)
-        print("\nUsage: python run_interactive.py 'Your question' [--verbose]")
-        print("\nExample:")
-        print("  python run_interactive.py 'How could Kongming win in The Three Kingdoms?'")
-        print("  python run_interactive.py 'Latest AI trends' --verbose")
+        print("🔬 DEEP RESEARCH - INTERACTIVE SESSION")
+        print("="*80)
+        print("\nWelcome! You can ask research questions and I'll conduct deep research.")
+        print("Type 'quit', 'exit', or 'q' to end the session.")
+        print("="*80)
+
+        while True:
+            try:
+                print("\n" + "─"*80)
+                question = input("❓ Your research question: ").strip()
+
+                if not question:
+                    print("⚠️  Please enter a question.")
+                    continue
+
+                if question.lower() in ['quit', 'exit', 'q']:
+                    print("\n👋 Thank you for using Deep Research! Goodbye.")
+                    break
+
+                # Run research
+                asyncio.run(interactive_research(question, verbose))
+
+                # Ask if user wants to continue
+                print("\n" + "─"*80)
+                continue_choice = input("🔄 Ask another question? (y/n): ").strip().lower()
+                if continue_choice not in ['y', 'yes', '']:
+                    print("\n👋 Thank you for using Deep Research! Goodbye.")
+                    break
+
+            except KeyboardInterrupt:
+                print("\n\n⚠️  Session interrupted. Goodbye!")
+                break
+            except Exception as e:
+                print(f"\n❌ Error: {e}")
+                print("Let's try again...")
 
 if __name__ == "__main__":
     main()
