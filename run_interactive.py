@@ -187,7 +187,7 @@ async def interactive_research(question: str, verbose: bool = False):
     logger.print(f"📁 Log file: {logger.log_file}")
     logger.print(f"{'='*80}\n")
 
-    messages = [{"role": "user", "content": question}]
+    messages = [HumanMessage(content=question)]
     tracker = ProgressTracker()
 
     overall_step_count = 0  # Track across all iterations
@@ -197,6 +197,8 @@ async def interactive_research(question: str, verbose: bool = False):
         state = {"messages": messages}
         final_state = None
         last_node_time = time.time()
+
+        logger.print(f"🔍 Debug: Starting graph with {len(messages)} messages")
 
         try:
             async for event in deep_researcher.astream(
