@@ -2,12 +2,54 @@
 import asyncio
 import sys
 import time
+import os
 from datetime import datetime, timedelta
+from pathlib import Path
 from dotenv import load_dotenv
 from src.open_deep_research.deep_researcher import deep_researcher
 from src.open_deep_research.configuration import Configuration
 
 load_dotenv()
+
+class OutputLogger:
+    """Log output to both console and file."""
+
+    def __init__(self, log_dir="research_logs"):
+        self.log_dir = Path(log_dir)
+        self.log_dir.mkdir(exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.log_file = self.log_dir / f"research_{timestamp}.log"
+        self.report_file = None
+
+    def print(self, message="", to_file=True, to_console=True):
+        """Print to both console and file."""
+        if to_console:
+            print(message)
+        if to_file:
+            with open(self.log_file, "a", encoding="utf-8") as f:
+                # Strip ANSI color codes for file output
+                clean_msg = message.replace("═", "=").replace("─", "-")
+                clean_msg = clean_msg.replace("█", "#").replace("░", "-")
+                f.write(clean_msg + "\n")
+
+    def save_report(self, question: str, report: str):
+        """Save the final report to a separate file."""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Create safe filename from question
+        safe_question = "".join(c if c.isalnum() or c in " _-" else "_" for c in question)
+        safe_question = safe_question[:50]  # Limit length
+
+        self.report_file = self.log_dir / f"report_{timestamp}_{safe_question}.md"
+
+        with open(self.report_file, "w", encoding="utf-8") as f:
+            f.write(f"# Research Report\n\n")
+            f.write(f"**Question:** {question}\n\n")
+            f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            f.write("---\n\n")
+            f.write(report)
+
+        return self.report_file
 
 class ProgressTracker:
     """Track research progress and estimate completion time."""
@@ -90,19 +132,22 @@ def extract_research_info(state):
 
 async def interactive_research(question: str, verbose: bool = False):
     """Run research with interactive clarification support and detailed progress."""
-    print(f"\n{'='*80}")
-    print(f"🔬 DEEP RESEARCH SESSION")
-    print(f"{'='*80}")
-    print(f"📝 Question: {question}")
-    print(f"⏰ Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger = OutputLogger()
+
+    logger.print(f"\n{'='*80}")
+    logger.print(f"🔬 DEEP RESEARCH SESSION")
+    logger.print(f"{'='*80}")
+    logger.print(f"📝 Question: {question}")
+    logger.print(f"⏰ Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     config = Configuration.from_runnable_config()
-    print(f"\n⚙️  Configuration:")
-    print(f"   • Search API: {config.search_api.value}")
-    print(f"   • Research Model: {config.research_model}")
-    print(f"   • Max Concurrent Units: {config.max_concurrent_research_units}")
-    print(f"   • Max Iterations: {config.max_researcher_iterations}")
-    print(f"{'='*80}\n")
+    logger.print(f"\n⚙️  Configuration:")
+    logger.print(f"   • Search API: {config.search_api.value}")
+    logger.print(f"   • Research Model: {config.research_model}")
+    logger.print(f"   • Max Concurrent Units: {config.max_concurrent_research_units}")
+    logger.print(f"   • Max Iterations: {config.max_researcher_iterations}")
+    logger.print(f"📁 Log file: {logger.log_file}")
+    logger.print(f"{'='*80}\n")
 
     messages = [{"role": "user", "content": question}]
     tracker = ProgressTracker()
@@ -123,64 +168,64 @@ async def interactive_research(question: str, verbose: bool = False):
 
                 # Determine node type and display appropriate info
                 if node_name == "clarify_with_user":
-                    print(f"\n{'─'*80}")
-                    print(f"📋 STEP {step_count}: Clarifying Requirements")
-                    print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
-                    print(f"{'─'*80}")
+                    logger.print(f"\n{'─'*80}")
+                    logger.print(f"📋 STEP {step_count}: Clarifying Requirements")
+                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
+                    logger.print(f"{'─'*80}")
 
                 elif node_name == "create_research_brief":
-                    print(f"\n{'─'*80}")
-                    print(f"📝 STEP {step_count}: Creating Research Plan")
-                    print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
-                    print(f"{'─'*80}")
+                    logger.print(f"\n{'─'*80}")
+                    logger.print(f"📝 STEP {step_count}: Creating Research Plan")
+                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
+                    logger.print(f"{'─'*80}")
 
                 elif node_name == "research_supervisor":
                     iteration = info["iteration"]
                     max_iter = config.max_researcher_iterations
                     progress_bar = tracker.get_progress_bar(iteration, max_iter)
 
-                    print(f"\n{'─'*80}")
-                    print(f"🎯 STEP {step_count}: Research Supervisor (Iteration {iteration}/{max_iter})")
-                    print(f"   {progress_bar}")
-                    print(f"⏱️  Elapsed: {tracker.get_elapsed_time()} | ETA: {tracker.estimate_remaining(iteration, max_iter)}")
-                    print(f"📊 Notes Collected: {info['notes_count']}")
+                    logger.print(f"\n{'─'*80}")
+                    logger.print(f"🎯 STEP {step_count}: Research Supervisor (Iteration {iteration}/{max_iter})")
+                    logger.print(f"   {progress_bar}")
+                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()} | ETA: {tracker.estimate_remaining(iteration, max_iter)}")
+                    logger.print(f"📊 Notes Collected: {info['notes_count']}")
 
                     if info["topics"]:
-                        print(f"\n🔍 Research Topics Assigned:")
+                        logger.print(f"\n🔍 Research Topics Assigned:")
                         for i, topic in enumerate(info["topics"][-3:], 1):  # Show last 3
-                            print(f"   {i}. {topic[:100]}...")
-                    print(f"{'─'*80}")
+                            logger.print(f"   {i}. {topic[:100]}...")
+                    logger.print(f"{'─'*80}")
 
                 elif "researcher" in node_name.lower():
-                    print(f"\n{'─'*80}")
-                    print(f"🔎 STEP {step_count}: Researcher Working")
+                    logger.print(f"\n{'─'*80}")
+                    logger.print(f"🔎 STEP {step_count}: Researcher Working")
 
                     if info["topics"]:
-                        print(f"📌 Topic: {info['topics'][0][:150]}...")
+                        logger.print(f"📌 Topic: {info['topics'][0][:150]}...")
 
                     # Show tool call iterations if available
                     if "tool_call_iterations" in node_state:
                         tool_iter = node_state["tool_call_iterations"]
                         max_tool_iter = config.max_react_tool_calls
                         tool_progress = tracker.get_progress_bar(tool_iter, max_tool_iter, width=20)
-                        print(f"🔧 Tool Calls: {tool_progress} ({tool_iter}/{max_tool_iter})")
+                        logger.print(f"🔧 Tool Calls: {tool_progress} ({tool_iter}/{max_tool_iter})")
 
-                    print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
-                    print(f"{'─'*80}")
+                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
+                    logger.print(f"{'─'*80}")
 
                 elif node_name == "compress_research":
-                    print(f"\n{'─'*80}")
-                    print(f"📦 STEP {step_count}: Compressing Research Findings")
-                    print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
-                    print(f"📊 Notes to Compress: {info['notes_count']}")
-                    print(f"{'─'*80}")
+                    logger.print(f"\n{'─'*80}")
+                    logger.print(f"📦 STEP {step_count}: Compressing Research Findings")
+                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
+                    logger.print(f"📊 Notes to Compress: {info['notes_count']}")
+                    logger.print(f"{'─'*80}")
 
                 elif node_name == "write_report":
-                    print(f"\n{'─'*80}")
-                    print(f"📄 STEP {step_count}: Writing Final Report")
-                    print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
-                    print(f"📊 Using {info['notes_count']} research notes")
-                    print(f"{'─'*80}")
+                    logger.print(f"\n{'─'*80}")
+                    logger.print(f"📄 STEP {step_count}: Writing Final Report")
+                    logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
+                    logger.print(f"📊 Using {info['notes_count']} research notes")
+                    logger.print(f"{'─'*80}")
 
                 tracker.end_step()
                 final_state = node_state
@@ -194,40 +239,47 @@ async def interactive_research(question: str, verbose: bool = False):
 
                 # Check if it's asking for clarification
                 if isinstance(content, str) and "?" in content and len(content) < 500:
-                    print(f"\n{'='*80}")
-                    print("💬 CLARIFICATION NEEDED")
-                    print(f"{'='*80}\n")
-                    print(content)
-                    print(f"\n{'='*80}")
+                    logger.print(f"\n{'='*80}")
+                    logger.print("💬 CLARIFICATION NEEDED")
+                    logger.print(f"{'='*80}\n")
+                    logger.print(content)
+                    logger.print(f"\n{'='*80}")
 
                     # Get user response
                     response = input("\n👉 Your response (or press Enter to continue): ").strip()
 
                     if response:
+                        logger.print(f"User response: {response}", to_console=False)
                         messages.append({"role": "assistant", "content": content})
                         messages.append({"role": "user", "content": response})
-                        print("\n📝 Continuing research with your clarification...\n")
+                        logger.print("\n📝 Continuing research with your clarification...\n")
                         tracker = ProgressTracker()  # Reset tracker
                         continue
                     else:
-                        print("\n⏭️  Proceeding with comprehensive research...\n")
+                        logger.print("\n⏭️  Proceeding with comprehensive research...\n")
                         messages.append({"role": "assistant", "content": content})
                         messages.append({"role": "user", "content": "Please proceed with comprehensive research on all aspects."})
                         tracker = ProgressTracker()  # Reset tracker
                         continue
 
                 # Otherwise, it's the final report
-                print(f"\n{'='*80}")
-                print("✅ RESEARCH COMPLETE")
-                print(f"{'='*80}")
-                print(f"⏱️  Total Time: {tracker.get_elapsed_time()}")
-                print(f"📊 Total Steps: {len(tracker.steps)}")
-                print(f"{'='*80}\n")
-                print(content)
-                print(f"\n{'='*80}")
+                logger.print(f"\n{'='*80}")
+                logger.print("✅ RESEARCH COMPLETE")
+                logger.print(f"{'='*80}")
+                logger.print(f"⏱️  Total Time: {tracker.get_elapsed_time()}")
+                logger.print(f"📊 Total Steps: {len(tracker.steps)}")
+                logger.print(f"{'='*80}\n")
+                logger.print(content)
+                logger.print(f"\n{'='*80}")
+
+                # Save report to separate file
+                report_file = logger.save_report(question, content)
+                logger.print(f"\n📄 Report saved to: {report_file}")
+                logger.print(f"📋 Full log saved to: {logger.log_file}")
+
                 return content
 
-        print("\n⚠️  No report generated. Something went wrong.")
+        logger.print("\n⚠️  No report generated. Something went wrong.")
         break
 
 

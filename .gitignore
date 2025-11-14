@@ -49,6 +49,7 @@ htmlcov/
 # Logs
 *.log
 logs/
+research_logs/
 
 # Local development
 .env.local
