@@ -80,15 +80,62 @@ In LangGraph Studio:
 
 ## Configuration
 
-The agent is configured to use Tavily search by default. You can customize various settings in the configuration:
+The agent is highly configurable via environment variables in the `.env` file:
 
-- **Search API**: Tavily (default), OpenAI native search, Anthropic native search
-- **Models**: Configure different models for summarization, research, compression, and final report
-- **Concurrency**: Adjust the number of parallel research units
-- **Iterations**: Set maximum research iterations
+### Model Selection
 
-Access configuration through:
-- Environment variables in `.env`
+Configure different models for different tasks:
+
+```bash
+# Summarization (lightweight task)
+SUMMARIZATION_MODEL=openai:gpt-4.1-mini
+SUMMARIZATION_MODEL_MAX_TOKENS=8192
+
+# Research (main reasoning)
+RESEARCH_MODEL=openai:gpt-4.1
+RESEARCH_MODEL_MAX_TOKENS=10000
+
+# Compression (consolidating findings)
+COMPRESSION_MODEL=openai:gpt-4.1
+COMPRESSION_MODEL_MAX_TOKENS=8192
+
+# Final Report (writing output)
+FINAL_REPORT_MODEL=openai:gpt-4.1
+FINAL_REPORT_MODEL_MAX_TOKENS=10000
+```
+
+**Supported Providers**: OpenAI, Anthropic, Google, Groq, DeepSeek, and others via LangChain's `init_chat_model()` API.
+
+**Example Models**:
+- OpenAI: `openai:gpt-4.1`, `openai:gpt-4.1-mini`, `openai:gpt-5`
+- Anthropic: `anthropic:claude-sonnet-4-20250514`
+- Google: `google:gemini-1.5-pro`
+
+### Research Settings
+
+Control research behavior:
+
+```bash
+# Search API to use
+SEARCH_API=tavily  # Options: tavily, openai, anthropic, none
+
+# Parallel research units (higher = faster but more API calls)
+MAX_CONCURRENT_RESEARCH_UNITS=5
+
+# Research depth (higher = more thorough but slower)
+MAX_RESEARCHER_ITERATIONS=6
+
+# Tool calls per researcher
+MAX_REACT_TOOL_CALLS=10
+
+# Enable/disable clarification questions
+ALLOW_CLARIFICATION=true
+```
+
+### Access Configuration
+
+Configuration can be set via:
+- Environment variables in `.env` (recommended)
 - LangGraph Studio UI (Manage Assistants tab)
 - Direct modification of `src/open_deep_research/configuration.py`
 
