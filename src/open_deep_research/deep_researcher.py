@@ -410,6 +410,13 @@ async def researcher(state: ResearcherState, config: RunnableConfig) -> Command[
             "search API or add MCP tools to your configuration."
         )
     
+    # Log researcher activity
+    research_topic = state.get("research_topic", "Unknown topic")
+    iteration = state.get("tool_call_iterations", 0) + 1
+    print(f"  🔎 Researcher: {research_topic[:80]}...")
+    if iteration > 1:
+        print(f"     Iteration {iteration}/{configurable.max_react_tool_calls}")
+
     # Step 2: Configure the researcher model with tools
     research_model_config = {
         "model": configurable.research_model,
