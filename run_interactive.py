@@ -181,7 +181,7 @@ async def interactive_research(question: str, verbose: bool = False):
                     logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
                     logger.print(f"{'─'*80}")
 
-                elif node_name == "research_supervisor":
+                elif node_name == "research_supervisor" or node_name == "supervisor":
                     iteration = info["iteration"]
                     max_iter = config.max_researcher_iterations
                     progress_bar = tracker.get_progress_bar(iteration, max_iter)
@@ -197,6 +197,28 @@ async def interactive_research(question: str, verbose: bool = False):
                         for i, topic in enumerate(info["topics"][-5:], 1):  # Show last 5
                             logger.print(f"   {i}. {topic[:120]}...")
                     logger.print(f"{'─'*80}")
+
+                elif node_name == "supervisor_tools":
+                    # Extract research topics being dispatched
+                    if "supervisor_messages" in node_state:
+                        last_supervisor_msg = node_state["supervisor_messages"][-1] if node_state["supervisor_messages"] else None
+                        if last_supervisor_msg and hasattr(last_supervisor_msg, "tool_calls"):
+                            research_topics = [
+                                tc.get("args", {}).get("research_topic", "")
+                                for tc in last_supervisor_msg.tool_calls
+                                if tc.get("name") == "ConductResearch"
+                            ]
+
+                            if research_topics:
+                                num_researchers = min(len(research_topics), config.max_concurrent_research_units)
+                                logger.print(f"\n{'─'*80}")
+                                logger.print(f"🚀 STEP {overall_step_count}: Dispatching {num_researchers} Parallel Researchers")
+                                logger.print(f"⏱️  Elapsed: {tracker.get_elapsed_time()}")
+                                logger.print(f"\n📋 Research Topics:")
+                                for i, topic in enumerate(research_topics[:5], 1):
+                                    logger.print(f"   {i}. {topic[:150]}...")
+                                logger.print(f"\n⏳ Researchers working in parallel... (this may take a while)")
+                                logger.print(f"{'─'*80}")
 
                 elif "researcher" in node_name.lower():
                     # Extract researcher number/ID from node name if possible
